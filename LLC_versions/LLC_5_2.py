@@ -333,10 +333,10 @@ class Battery:
             self.update_ins()
             self.update_errors()
 
-            j += 1
             if j == max_iter:
                 print(f'Failed to converge after {max_iter} iterations!')
                 break
+            j += 1
         self.runs = j
 
     def anderson_acceleration(self, max_iter, battery_convergence, stage_convergence, m=5):
@@ -394,10 +394,10 @@ class Battery:
             self.update_ins()
             self.update_errors()
 
-            j += 1
             if j == max_iter:
                 print(f'Failed to converge after {max_iter} iterations!')
                 break
+            j += 1
         self.runs = j
 
     def broyden(self, max_iter, battery_convergence, stage_convergence):
@@ -446,10 +446,10 @@ class Battery:
             x_old = x_new
             f_old = f_new
 
-            j += 1
             if j == max_iter:
                 print(f'Failed to converge after {max_iter} iterations!')
                 break
+            j += 1
         self.runs = j
 
     def damp_secant(self, max_iter, damping, battery_convergence, stage_convergence):
@@ -495,12 +495,10 @@ class Battery:
                 damping *= 0.8  # Reduce damping by 20%
             else:
                 damping = min(damping * 1.1, 1.0)  # Slowly increase damping up to 1.0
-
-            j += 1
             if j == max_iter:
                 print(f'Failed to converge after {max_iter} iterations!')
                 break
-
+            j += 1
         self.runs = j
 
     def secant(self, max_iter, damping, battery_convergence, stage_convergence):
@@ -525,10 +523,10 @@ class Battery:
             self.update_outs()
             self.update_ins()
             self.update_errors()
-            j+=1
             if j==max_iter:
                 print (max_iter, 'iterations!')
                 break
+            j+=1
         self.runs = j
 
     def successive_substitution(self, max_iter, damping, battery_convergence, stage_convergence):
@@ -553,10 +551,10 @@ class Battery:
             self.update_outs()
             self.update_ins()
             self.update_errors()
-            j+=1
             if j==max_iter:
                 print (max_iter, 'iterations!')
                 break
+            j+=1
         self.runs = j
 
     def initialize_arrays(self, Oin, Ain, yin, xin):
@@ -678,7 +676,6 @@ class Battery:
         for i in range(0, self.stages_num-1):
             self.entrainment_comp_list[i][1] = self.yout_list[i+1] # Organic entrainment in Ain is from yout of stage i+1
             self.entrainment_comp_list[i+1][0] = self.xout_list[i] # Aqueous entrainment in Oin is from xout of stage i
-
 
     def update_outs(self):
         """
