@@ -585,7 +585,7 @@ class Battery:
         self.xout_list = np.zeros((self.stages_num, len(xin)))
         self.stages = [[] for i in range(self.stages_num)] # List of stages - currently not used
         self.outs_array = pd.DataFrame(np.zeros((1,(self.stages_num-1)*(len(xin)*2+2))))
-        self.ins_array = pd.DataFrame()
+        self.ins_array = pd.DataFrame(np.zeros((1,(self.stages_num-1)*(len(xin)*2+2))))
         self.errors_array = pd.DataFrame(np.zeros((1,(self.stages_num-1)*(len(xin)*2+2))))
 
     def check_inputs(self):
