@@ -197,7 +197,7 @@ class Stage:
         print ("convergence=", [round(num,7) for num in self.conv[-1]])
         # print ("K=", [round(num,5) for num in self.K])
 
-class Battery:
+class CounterCurrentBattery:
     """
     A class for simulating a multi-stage counter-current battery extraction process.
 
@@ -816,6 +816,170 @@ class Battery:
         for stage in range(self.stages_num):
             entrainment_comp_flat.append([i for item in self.entrainment_comp_list[stage] for i in item])
         self.entrainment_comp_flat = np.array(entrainment_comp_flat)
+
+class Battery:
+    """Attributes:
+        stages_num:                       Number of stages.
+        stages:                           Array of Stage objects (0 -- stage_num-1). Organic inlet to stages[0] -- Stage 1.
+        Oin/Ain/Oin/Oout:                 Organic/aqueous phase mass inlet/outlet flow.
+        Oin/Ain/Oin/Oout_list:            List of organic/aqueous phase mass inlet/outlet flows for stages.
+        yin/xin/yout_tag/yout/xout_list:  List of lists of organic/aqueous phase inlet/outlet concentrations: [stage, component]
+        runs:                             Number of iterations.
+        eff_list:                         List of stage efficiencies (0.0-1.0).
+        errors:                           Numpy array of errors.
+        EQUIL:                            Object class for calculating equilibrium concentrations.
+        K:                                List of distribute ratios for solubles. %aq/%org
+        entrainment_perc_in:              Entrainment percent for inlets [org_in, aq_in].
+        entrainment_perc_out:             Entrainment percent data should consist of 2D array (stages_num, 2)  or 1D array [org_out, aq_out] or single number.
+        entrainment_perc_list:            Entrainment percent data arranged for stages.
+        entrainment_comp_in:              Composition of inlet entrainments in [aqueous phase in Oin, organic phase in Ain] --> [[%solvent_aq, %H3PO4_aq, ...], [%water_org, %H3PO4_org, ...]]. Outlet compositions are calculated: yout, xout.
+        entrainment_comp_list:            List of entrainment compositions [[%solvent_aq, %H3PO4_aq, ...],[%water_org, %H3PO4_org, ...], ... stage_num].
+        entrainment_comp_flat:            List of entrainment compositions arranged for presentation in table.
+        """
+
+    def __init__(self, stages_num, Oin, Ain, yin, xin, EQUIL, eff=1., max_iter=100, entrainment_perc_in=0, entrainment_comp_in=0, entrainment_perc_out=0, convergence=1E-4):
+        self.stages_num = stages_num
+        self.Oin_list = np.ones(stages_num)*Oin
+        self.Ain_list = np.ones(stages_num)*Ain
+        yin=np.array(yin, dtype=float) # [%water_org, %H3PO4_org, ...]
+        xin=np.array(xin, dtype=float) # [%solvent_aq, %H3PO4_aq, ...]
+        self.yin_list = np.array([yin for i in range(stages_num)])
+        self.xin_list = np.array([xin for i in range(stages_num)])
+        self.EQUIL = EQUIL
+        self.stages = [[] for i in range(stages_num)] # List of stages
+        self.Oout_list = np.zeros(stages_num)
+        self.Aout_list = np.zeros(stages_num)
+        self.yout_tag_list = np.array([yin for i in range(stages_num)])
+        self.yout_list = np.array([yin for i in range(stages_num)])
+        self.xout_list = np.array([xin for i in range(stages_num)])
+        self.eff = eff
+        self.entrainment_perc_in = entrainment_perc_in
+        self.entrainment_comp_in = entrainment_comp_in
+        self.entrainment_perc_out = entrainment_perc_out
+        self.check_inputs()
+        entrainment_comp_list = np.array([self.entrainment_comp_in for i in range(stages_num)])*1.
+        self.errors=np.zeros([2,len(xin)]) # for stages_num=1
+
+        # k=0
+        for i in range(stages_num):
+            self.stages[i] = Stage(self.Oin_list[i], self.Ain_list[i], self.yin_list[i], self.xin_list[i], EQUIL=self.EQUIL, eff=self.eff_list[i], 
+                                   entrainment_perc=self.entrainment_perc_list[i], entrainment_comp_in=entrainment_comp_list[i], convergence=convergence)
+            self.Oout_list[i] = self.stages[i].Oout
+            self.Aout_list[i] = self.stages[i].Aout
+            self.yout_tag_list[i] = self.stages[i].yout_tag
+            self.yout_list[i] = self.stages[i].yout
+            self.xout_list[i] = self.stages[i].xout
+        if stages_num>1:
+            self.errors=np.array([(self.xout_list[1]-self.xin_list[0])/(self.xout_list[1]+1E-7)])
+
+        # k=1
+        for i in range(1, stages_num):
+            self.Oin_list[i] = self.Oout_list[i-1]
+            self.yin_list[i] = self.yout_list[i-1]
+            entrainment_comp_list[i-1][1] = self.yout_list[i]
+        for i in range(0, stages_num-1):
+            self.Ain_list[i] = self.Aout_list[i+1]
+            self.xin_list[i] = self.xout_list[i+1]
+            entrainment_comp_list[i+1][0] = self.xout_list[i]
+        for i in range(stages_num):
+            self.stages[i] = Stage(self.Oin_list[i], self.Ain_list[i], self.yin_list[i], self.xin_list[i], EQUIL=self.EQUIL, eff=self.eff_list[i], 
+                                   entrainment_perc=self.entrainment_perc_list[i], entrainment_comp_in=entrainment_comp_list[i], convergence=convergence)
+            self.Oout_list[i] = self.stages[i].Oout
+            self.Aout_list[i] = self.stages[i].Aout
+            self.yout_tag_list[i] = self.stages[i].yout_tag
+            self.yout_list[i] = self.stages[i].yout
+            self.xout_list[i] = self.stages[i].xout 
+        if stages_num>1:   
+            self.errors=np.concatenate((self.errors,[(self.xout_list[1]-self.xin_list[0])/(self.xout_list[1]+1E-5)]), axis=0)
+
+        # k>1
+        convergence = convergence
+        j=0
+        while max(abs(self.errors[-1]))>convergence or max(abs(self.errors[-2]))>convergence:
+        # for j in range(20):
+            for i in range(1, stages_num):
+                self.Oin_list[i] = self.Oout_list[i-1]
+                self.yin_list[i] = self.yout_list[i-1]
+                entrainment_comp_list[i-1][1] = self.yout_list[i]
+            for i in range(0, stages_num-1):
+                self.Ain_list[i] = self.Aout_list[i+1]
+                self.xin_list[i] = self.xout_list[i+1] 
+                entrainment_comp_list[i+1][0] = self.xout_list[i]  
+            for i in range(stages_num):
+                self.stages[i] = Stage(self.Oin_list[i], self.Ain_list[i], self.yin_list[i], self.xin_list[i], EQUIL=self.EQUIL, eff=self.eff_list[i], 
+                                       entrainment_perc=self.entrainment_perc_list[i], entrainment_comp_in=entrainment_comp_list[i], convergence=convergence)
+                self.Oout_list[i] = self.stages[i].Oout
+                self.Aout_list[i] = self.stages[i].Aout
+                self.yout_tag_list[i] = self.stages[i].yout_tag
+                self.yout_list[i] = self.stages[i].yout
+                self.xout_list[i] = self.stages[i].xout          
+            self.errors=np.concatenate((self.errors,[(self.xout_list[1]-self.xin_list[0])/(self.xout_list[1]+1E-7)]), axis=0)
+            j+=1
+            if j==max_iter:
+                print (max_iter, 'iterations!')
+                break
+        
+        self.K = self.xout_list/(self.yout_tag_list+1E-7)
+        self.runs = j
+        self.Oin, self.Ain, self.yin, self.xin = Oin, Ain, yin, xin
+        self.Oout, self.Aout, self.yout_tag, self.yout, self.xout, = self.Oout_list[-1], self.Aout_list[0], self.yout_tag_list[-1], self.yout_list[-1], self.xout_list[0], 
+        self.entrainment_comp_list = entrainment_comp_list
+        entrainment_comp_flat = []
+        for stage in range(stages_num):
+            entrainment_comp_flat.append([i for item in entrainment_comp_list[stage] for i in item])
+        self.entrainment_comp_flat = np.array(entrainment_comp_flat)
+
+    def check_inputs(self):
+        # --------
+        eff, stages_num, yin_len = self.eff, self.stages_num, len(self.yin_list[0])
+        if np.isscalar(eff):                                             # scalar
+            eff_out = np.ones([stages_num, yin_len]) * eff
+        else:
+            eff = np.array(eff)
+            eff_out = np.ones([stages_num, yin_len])
+            if np.isscalar(eff[0]):                                      # vector for elements [water, P2O5, ...] same for all stages
+                a = np.array(list(map(lambda x:eff[:yin_len], eff_out))) # 2D array (stage_num, yin_len) with rows of eff
+                eff_out[:a.shape[0], :a.shape[1]]=a                      # for the case if eff is shorter than yin_len
+            else:                   
+                if eff.shape[1] == 1:                                    # vector for stages same for all elements  
+                    b = eff.T[0]
+                    a = np.array(list(map(lambda x:b[:stages_num], eff_out.T))) 
+                    eff_out.T[:a.shape[0], :a.shape[1]]=a 
+                if eff.shape[1] > 1:                                     # list of lists
+                    eff_out[:eff.shape[0], :eff.shape[1]]=eff            # for the case if eff is shorter than yin_len
+        self.eff_list = eff_out
+        self.eff_list[:,0]=1
+        # ----------
+        epi = self.entrainment_perc_in
+        if np.isscalar(epi):
+            epi = np.ones(2) * epi
+        else:
+            epi = np.array(epi, dtype=float)
+
+        epo = self.entrainment_perc_out
+        if np.isscalar(epo):
+            epo_out = np.ones([stages_num, 2]) * epo
+        else:
+            epo = np.array(epo, dtype=float)
+            epo_out = np.ones([stages_num, 2])
+            if np.isscalar(epo[0]): # same [org_out, aq_out] for all stages 
+                if len(epo) != 2:
+                    print ('Entrainment percent data should consist of 2D array (stages_num, 2)  or 1D array [org_out, aq_out] or single number.')
+                epo_out = epo_out * epo
+            else:
+                if epo.shape != (stages_num,2):
+                    print ('Entrainment percent data should consist of 2D array (stages_num, 2)  or 1D array [org_out, aq_out] or single number.')
+                epo_out = epo
+        
+        ep1 = np.concatenate([[epi], epo_out, [epi]], axis=0)
+        ep2 = [[ep1[i,0],ep1[i+2,1]] for i in range(stages_num)]
+        self.entrainment_perc_list = np.concatenate([ep2,epo_out], axis=1)
+        # ------------
+        if np.isscalar(self.entrainment_comp_in):
+            self.entrainment_comp_in = np.ones([2, len(self.yin_list[0])]) * self.entrainment_comp_in
+        else:
+            if len(self.entrainment_comp_in[0]) != len(self.yin_list[0]):
+                print ('Array of entrainment compositions is not correct.')
 
 class BatteryTable:
     """
