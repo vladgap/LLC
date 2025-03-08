@@ -225,7 +225,7 @@ class CounterCurrentBattery:
         entrainment_comp_flat (numpy.ndarray): Flattened list of entrainment compositions, suitable for tabular representation. Shape: (stages_num, 2 * num_components).
     """
 
-    def __init__(self, stages_num, Oin, Ain, yin, xin, EQUIL, method='successive', damping=1, eff=1., max_iter=100, entrainment_perc_in=0, entrainment_comp_in=0, entrainment_perc_out=0, battery_convergence=1e-3, stage_convergence=1E-2, convergence=None):
+    def __init__(self, stages_num, Oin, Ain, yin, xin, EQUIL, method='successive', damping=1, eff=1., max_iter=100, entrainment_perc_in=0, entrainment_comp_in=0, entrainment_perc_out=0, battery_convergence=1e-3, stage_convergence=1E-2, convergence=None, **kwargs):
         """
         Initializes the BatteryConv class.
 
