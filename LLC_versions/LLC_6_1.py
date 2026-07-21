@@ -1,4 +1,4 @@
-#ver 6.0 5.7.26
+#ver 6.1 8.7.26
 #NewStage
 #CounterCurrentBattery
 
